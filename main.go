@@ -3,36 +3,38 @@ package main
 import (
 	"fmt"
 	"io"
-	"time"
+	"log"
+	"net"
 )
+
+const listenAddr = "localhost:4000"
 
 var partner = make(chan io.ReadWriteCloser)
 
 func main() {
-	ticker := time.NewTicker(time.Millisecond * 250)
-	boom := time.After(time.Second * 1)
-
+	l, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
 	for {
-		select {
-		case <-ticker.C:
-			fmt.Println("tick")
-		case <-boom:
-			fmt.Println("boom!")
-			return
+		conn, err := l.Accept()
+		if err != nil {
+			log.Fatal(err)
 		}
+		go match(conn)
 	}
 }
 
-func match(c io.ReadWriteCloser) {
-	fmt.Fprint(c, "Waiting for a partner...")
+func match(conn io.ReadWriteCloser) {
+	fmt.Fprint(conn, "Waiting for a partner...")
 	// Simultaneously trying to send the connection to partner channel and Also trying to receive from the partner channel and store it in the variable p
 	// Does anybody want my connection and also can somebody give me a connection?
 	select {
-	case partner <- c:
+	case partner <- conn:
 		// now handled by the other goroutine
 	case p := <-partner:
 		// do some chat stuff
-		chat(p, c)
+		chat(p, conn)
 	}
 }
 
